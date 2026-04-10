@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Preferanse</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #1a5c2a;
+      --surface: #0f3d1b;
+      --text: #f0e6c8;
+      --accent: #c9a84c;
+      --danger: #c0392b;
+      --card-bg: #fdf6e3;
+      --card-border: #bbb;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 { color: var(--accent); letter-spacing: 2px; padding: 16px 0 8px; font-size: 1.8rem; }
+
+    #app { width: 100%; max-width: 900px; padding: 8px 16px 32px; }
+
+    /* ---- Lobby ---- */
+    #lobby { display: flex; flex-direction: column; gap: 12px; align-items: center; margin-top: 40px; }
+    #lobby input, #lobby select {
+      padding: 10px 14px; border-radius: 6px; border: 1px solid var(--accent);
+      background: var(--surface); color: var(--text); font-size: 1rem; width: 260px;
+    }
+    button {
+      padding: 10px 24px; border-radius: 6px; border: none;
+      background: var(--accent); color: #1a1a1a; font-weight: bold;
+      cursor: pointer; font-size: 1rem; transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.85; }
+    button:disabled { opacity: 0.4; cursor: default; }
+    button.danger { background: var(--danger); color: #fff; }
+
+    #player-list { list-style: none; width: 260px; }
+    #player-list li {
+      padding: 6px 12px; background: var(--surface); border-radius: 4px;
+      margin-bottom: 4px; display: flex; justify-content: space-between;
+    }
+    .badge { font-size: 0.7rem; background: var(--accent); color: #1a1a1a; border-radius: 3px; padding: 1px 5px; }
+
+    /* ---- Game table ---- */
+    #game { display: none; flex-direction: column; gap: 12px; }
+
+    .info-bar {
+      display: flex; gap: 16px; align-items: center; font-size: 0.9rem;
+      background: var(--surface); border-radius: 6px; padding: 8px 14px;
+    }
+    .info-bar span { color: var(--accent); }
+
+    /* Players around table */
+    #table-players {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+    }
+    .player-box {
+      background: var(--surface); border-radius: 8px; padding: 10px;
+      border: 2px solid transparent; transition: border-color 0.3s;
+    }
+    .player-box.active { border-color: var(--accent); }
+    .player-box .pname { font-weight: bold; font-size: 1rem; margin-bottom: 4px; }
+    .player-box .pscore { font-size: 0.8rem; color: #aaa; }
+    .player-box .pcards { font-size: 0.8rem; color: #ccc; }
+    .dealer-marker { color: var(--accent); font-size: 0.75rem; }
+
+    /* Trick area */
+    #trick-area {
+      min-height: 120px; background: var(--surface); border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      padding: 12px; flex-wrap: wrap;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      border-radius: 6px; padding: 6px 10px; cursor: pointer;
+      font-size: 1.1rem; min-width: 44px; text-align: center;
+      transition: transform 0.15s, box-shadow 0.15s;
+      user-select: none; color: #1a1a1a;
+    }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .card.red { color: #c0392b; }
+    .card.disabled { opacity: 0.5; cursor: default; transform: none; }
+    .card.in-trick { cursor: default; }
+    .card.selected { outline: 3px solid var(--accent); transform: translateY(-6px); }
+
+    #my-hand {
+      display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
+      min-height: 60px; padding: 8px; background: rgba(0,0,0,0.15); border-radius: 8px;
+    }
+
+    /* Action panel */
+    #action-panel {
+      background: var(--surface); border-radius: 8px; padding: 14px;
+      min-height: 60px; display: flex; flex-direction: column; gap: 8px;
+    }
+    #action-panel h3 { color: var(--accent); margin-bottom: 4px; }
+    .action-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* Bid grid */
+    #bid-grid {
+      display: grid; grid-template-columns: repeat(5, auto); gap: 4px;
+    }
+    #bid-grid button {
+      font-size: 0.8rem; padding: 6px 8px; min-width: 56px;
+    }
+
+    /* Scoring panel */
+    #bullet-panel {
+      background: var(--surface); border-radius: 8px; padding: 12px;
+    }
+    #bullet-panel h3 { color: var(--accent); margin-bottom: 8px; }
+    #bullet-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    #bullet-table th, #bullet-table td {
+      border: 1px solid #444; padding: 4px 8px; text-align: center;
+    }
+    #bullet-table th { background: rgba(0,0,0,0.3); color: var(--accent); }
+
+    /* Status message */
+    #status { text-align: center; font-size: 0.95rem; color: #ccc; min-height: 24px; }
+    #error-msg { color: var(--danger); text-align: center; min-height: 20px; font-size: 0.9rem; }
+
+    /* Talon */
+    #talon-area { display: flex; gap: 8px; justify-content: center; padding: 4px 0; }
+
+    /* Hand result overlay */
+    #hand-result {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+      align-items: center; justify-content: center; z-index: 100;
+    }
+    #hand-result.show { display: flex; }
+    #hand-result-box {
+      background: var(--surface); border-radius: 10px; padding: 24px;
+      min-width: 320px; text-align: center; border: 2px solid var(--accent);
+    }
+    #hand-result-box h2 { color: var(--accent); margin-bottom: 12px; }
+    #hand-result-box table { width: 100%; margin: 12px 0; font-size: 0.9rem; }
+    #hand-result-box td, #hand-result-box th {
+      padding: 4px 10px; border: 1px solid #444;
+    }
+    #hand-result-box th { color: var(--accent); }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <h1>Preferanse</h1>
+  <div id="app">
+
+    <!-- LOBBY -->
+    <div id="lobby">
+      <input id="name-input" type="text" placeholder="Your name" maxlength="20" />
+      <div id="settings-area" class="hidden">
+        <label style="color:var(--accent);font-size:0.9rem">Bullet size: </label>
+        <input id="bullet-size-input" type="number" min="5" max="100" value="10" style="width:80px" />
+        <button id="set-settings-btn">Set</button>
+      </div>
+      <button id="join-btn">Join Game</button>
+      <ul id="player-list"></ul>
+      <button id="start-btn" disabled>Start Game (need 3 players)</button>
+      <div id="error-msg"></div>
+    </div>
+
+    <!-- GAME -->
+    <div id="game">
+      <div class="info-bar">
+        <div>Hand: <span id="hand-num">1</span></div>
+        <div>Bullet: <span id="bullet-size-display">10</span></div>
+        <div>Contract: <span id="current-bid-display">—</span></div>
+      </div>
+
+      <div id="table-players"></div>
+
+      <div id="talon-area"></div>
+
+      <div id="trick-area"><span style="color:#666">Trick will appear here</span></div>
+
+      <div id="my-hand"></div>
+
+      <div id="action-panel">
+        <div id="status"></div>
+      </div>
+
+      <div id="bullet-panel">
+        <h3>Bullet (Пуля)</h3>
+        <table id="bullet-table">
+          <thead><tr id="bullet-header"></tr></thead>
+          <tbody id="bullet-body"></tbody>
+        </table>
+      </div>
+
+      <div id="error-msg" style="margin-top:8px"></div>
+    </div>
+
+    <!-- HAND RESULT OVERLAY -->
+    <div id="hand-result">
+      <div id="hand-result-box">
+        <h2 id="result-title">Hand Result</h2>
+        <table id="result-table">
+          <thead><tr id="result-header"></tr></thead>
+          <tbody id="result-body"></tbody>
+        </table>
+        <button id="next-hand-btn">Next Hand</button>
+      </div>
+    </div>
+
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

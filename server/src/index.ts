@@ -13,7 +13,7 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: '*' } });
 
 // Serve static frontend build
-const clientDist = path.join(__dirname, '../../client/dist');
+const clientDist = process.env.CLIENT_DIST_PATH || path.join(__dirname, '../../client/dist');
 app.use(express.static(clientDist));
 app.get('*', (_req, res) => res.sendFile(path.join(clientDist, 'index.html')));
 

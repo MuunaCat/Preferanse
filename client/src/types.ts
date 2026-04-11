@@ -21,6 +21,7 @@ export type GamePhase =
   | 'lobby'
   | 'bidding'
   | 'talon'
+  | 'talon_rebid'
   | 'discarding'
   | 'whisting'
   | 'open_choice'

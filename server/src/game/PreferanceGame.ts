@@ -179,8 +179,26 @@ export class PreferanceGame {
     if (!p || p.seatIndex !== this.bidder) return 'Not the bidder';
     // Give talon to bidder's hand
     p.hand = [...p.hand, ...this.talon];
-    this.phase = 'discarding';
+    this.phase = 'talon_rebid';
+    this.activeSeat = this.bidder!;
     return this.talon;
+  }
+
+  confirmRebid(id: string, rawContract: Omit<Contract, 'bidValue'>): string | null {
+    if (this.phase !== 'talon_rebid') return 'Not in rebid phase';
+    const p = this.getPlayer(id);
+    if (!p || p.seatIndex !== this.bidder) return 'Not the bidder';
+
+    if (rawContract.type !== 'pass') {
+      const contract = makeContract(rawContract);
+      if (this.currentBid && contract.bidValue < this.currentBid.bidValue) {
+        return 'New bid must be at least as high as current bid';
+      }
+      this.currentBid = contract;
+    }
+
+    this.phase = 'discarding';
+    return null;
   }
 
   discardCards(id: string, cards: Card[]): string | null {
@@ -506,10 +524,10 @@ export class PreferanceGame {
       openCards = this.players[this.openSeat].hand;
     }
 
-    // Show talon when in talon or discarding phase (to bidder only)
+    // Show talon to everyone during pickup/rebid phases; hide during discard
     let visibleTalon: Card[] | null = null;
-    if ((this.phase === 'talon' || this.phase === 'discarding') && mySeat === this.bidder) {
-      visibleTalon = this.talon;
+    if (this.phase === 'talon' || this.phase === 'talon_rebid') {
+      visibleTalon = this.talon; // everyone sees what was picked up
     }
 
     return {

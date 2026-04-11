@@ -1,6 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import type { ClientGameState, Card, Contract, WhistChoice, OpenChoice } from './types';
-import { contractLabel, bidValue, makeContractRaw, validBids } from './bidding';
+import { contractLabel, bidValue, makeContractRaw } from './bidding';
 import { cardLabel, suitClass, sortHand } from './cards';
 
 const socket: Socket = io();
@@ -51,6 +51,36 @@ socket.on('game:state', (s: ClientGameState) => {
 
 socket.on('game:error', (msg: string) => {
   showError(msg);
+});
+
+socket.on('chat:message', (entry: { name: string; text: string }) => {
+  const $msgs = document.getElementById('chat-messages')!;
+  const div = document.createElement('div');
+  div.className = 'chat-msg';
+  div.innerHTML = `<span class="chat-name">${entry.name}:</span> ${entry.text}`;
+  $msgs.appendChild(div);
+  $msgs.scrollTop = $msgs.scrollHeight;
+});
+
+// ---- Chat controls ----
+document.getElementById('chat-send-btn')!.addEventListener('click', sendChat);
+document.getElementById('chat-input')!.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') sendChat();
+});
+function sendChat() {
+  const input = document.getElementById('chat-input') as HTMLInputElement;
+  const text = input.value.trim();
+  if (!text) return;
+  socket.emit('chat:message', { text });
+  input.value = '';
+}
+
+// ---- Rules controls ----
+document.getElementById('rules-btn')!.addEventListener('click', () => {
+  document.getElementById('rules-modal')!.classList.add('show');
+});
+document.getElementById('rules-close-btn')!.addEventListener('click', () => {
+  document.getElementById('rules-modal')!.classList.remove('show');
 });
 
 // ---- Lobby controls ----
@@ -150,7 +180,7 @@ function renderTablePlayers(): void {
           WK: ${p.score.whistFromLeft} WD: ${p.score.whistFromRight}
         </div>
         ${(state!.phase === 'playing' || state!.phase === 'raspasovka')
-          ? `<div class="pcards" style="color:var(--accent)">Tricks: ${state!.tricksWon[p.seatIndex]}</div>`
+          ? `<div class="pcards" style="color:var(--accent);font-size:0.95rem;margin-top:4px">Home: ${state!.tricksWon[p.seatIndex]}</div>`
           : ''}
       </div>
     `;
@@ -159,7 +189,13 @@ function renderTablePlayers(): void {
 
 function renderTalon(): void {
   if (!state!.talon) { $talonArea.innerHTML = ''; return; }
-  $talonArea.innerHTML = '<span style="color:var(--accent);margin-right:8px">Talon:</span>' +
+  const phase = state!.phase;
+  const label = phase === 'talon_rebid'
+    ? 'Bidder picked up:'
+    : phase === 'talon'
+      ? 'Talon (open):'
+      : 'Talon:';
+  $talonArea.innerHTML = `<span style="color:var(--accent);margin-right:10px;font-size:0.95rem">${label}</span>` +
     state!.talon.map(c => `<div class="card ${suitClass(c)}">${cardLabel(c)}</div>`).join('');
 }
 
@@ -243,10 +279,18 @@ function renderActionPanel(): void {
   if (phase === 'bidding' && isMyTurn) {
     renderBidPanel();
   } else if (phase === 'talon' && isMyTurn) {
-    $actionPanel.innerHTML = '<button id="take-talon-btn">Pick up talon</button>';
+    $actionPanel.innerHTML = '<button id="take-talon-btn" style="font-size:1.05rem;padding:12px 28px">Pick up talon</button>';
     document.getElementById('take-talon-btn')!.addEventListener('click', () => {
       socket.emit('game:takeTalon');
     });
+  } else if (phase === 'talon' && !isMyTurn) {
+    const bidderName = state!.players.find(p => p.seatIndex === state!.bidder)?.name ?? '...';
+    $actionPanel.innerHTML = `<p style="color:#aaa">Waiting for ${bidderName} to pick up the talon...</p>`;
+  } else if (phase === 'talon_rebid' && isMyTurn) {
+    renderRebidPanel();
+  } else if (phase === 'talon_rebid' && !isMyTurn) {
+    const bidderName = state!.players.find(p => p.seatIndex === state!.bidder)?.name ?? '...';
+    $actionPanel.innerHTML = `<p style="color:#aaa">Waiting for ${bidderName} to confirm their bid...</p>`;
   } else if (phase === 'discarding' && isMyTurn) {
     $actionPanel.innerHTML = `
       <p style="color:var(--accent)">Select 2 cards to discard</p>
@@ -295,47 +339,66 @@ function renderActionPanel(): void {
   }
 }
 
-function renderBidPanel(): void {
-  const { currentBid } = state!;
-  const minValue = currentBid ? currentBid.bidValue + 1 : 0;
-
+function buildBidGrid(minValue: number, emitEvent: string): string {
   const suits = ['spades', 'clubs', 'diamonds', 'hearts'] as const;
   const suitSymbols: Record<string, string> = { spades: '♠', clubs: '♣', diamonds: '♦', hearts: '♥' };
-  const redSuits = new Set(['diamonds', 'hearts']);
 
-  let html = `<h3>Your bid</h3><div id="bid-grid">`;
-
+  let html = `<div id="bid-grid">`;
   for (let level = 6; level <= 10; level++) {
     for (const suit of suits) {
       const contract = makeContractRaw({ type: 'suit', level: level as 6|7|8|9|10, suit });
       const disabled = contract.bidValue < minValue;
-      const redClass = redSuits.has(suit) ? 'bid-red' : '';
-      html += `<button class="bid-btn ${redClass}" ${disabled ? 'disabled' : ''} data-bid='${JSON.stringify(contract)}'>${level}${suitSymbols[suit]}</button>`;
+      const cls = (suit === 'diamonds' || suit === 'hearts') ? 'bid-red' : '';
+      html += `<button class="bid-btn ${cls}" ${disabled ? 'disabled' : ''} data-bid='${JSON.stringify(contract)}' data-event="${emitEvent}">${level}${suitSymbols[suit]}</button>`;
     }
     const sansContract = makeContractRaw({ type: 'sans', level: level as 6|7|8|9|10 });
     const sansDisabled = sansContract.bidValue < minValue;
-    html += `<button class="bid-btn" ${sansDisabled ? 'disabled' : ''} data-bid='${JSON.stringify(sansContract)}'>${level} NS</button>`;
-
-    if (level === 6) {
-      html += `</div><div style="text-align:center;margin:4px 0">`;
-      const misereContract = makeContractRaw({ type: 'misere' });
-      const misereDisabled = misereContract.bidValue < minValue;
-      html += `<button class="bid-btn" ${misereDisabled ? 'disabled' : ''} data-bid='${JSON.stringify(misereContract)}'>Misère</button>`;
-      html += `</div><div id="bid-grid">`;
-    }
+    html += `<button class="bid-btn bid-blue" ${sansDisabled ? 'disabled' : ''} data-bid='${JSON.stringify(sansContract)}' data-event="${emitEvent}">${level} NS</button>`;
   }
+  html += `</div>`;
 
-  html += `</div><div style="margin-top:8px"><button class="danger" id="pass-bid-btn">Pass</button></div>`;
-  $actionPanel.innerHTML = html;
+  const misereContract = makeContractRaw({ type: 'misere' });
+  const misereDisabled = misereContract.bidValue < minValue;
+  html += `<div style="margin-top:8px">
+    <button class="bid-btn bid-misere" ${misereDisabled ? 'disabled' : ''} data-bid='${JSON.stringify(misereContract)}' data-event="${emitEvent}">Misère</button>
+  </div>`;
+  return html;
+}
 
+function attachBidListeners(): void {
   $actionPanel.querySelectorAll('.bid-btn:not([disabled])').forEach(el => {
     el.addEventListener('click', () => {
       const b = JSON.parse(el.getAttribute('data-bid')!);
-      socket.emit('game:bid', { contract: b });
+      const ev = el.getAttribute('data-event')!;
+      socket.emit(ev, { contract: b });
     });
   });
+}
+
+function renderBidPanel(): void {
+  const { currentBid } = state!;
+  const minValue = currentBid ? currentBid.bidValue + 1 : 0;
+  let html = `<h3>Your bid</h3>` + buildBidGrid(minValue, 'game:bid');
+  html += `<div style="margin-top:10px"><button class="danger" id="pass-bid-btn">Pass</button></div>`;
+  $actionPanel.innerHTML = html;
+  attachBidListeners();
   document.getElementById('pass-bid-btn')!.addEventListener('click', () => {
     socket.emit('game:bid', { contract: { type: 'pass' } });
+  });
+}
+
+function renderRebidPanel(): void {
+  const { currentBid } = state!;
+  const minValue = currentBid ? currentBid.bidValue : 0; // can rebid same or higher
+  const currentLabel = currentBid ? contractLabel(currentBid) : '—';
+  let html = `<h3>Update your bid</h3>
+    <div style="margin-bottom:10px">
+      <button id="keep-bid-btn" class="secondary">Keep: <strong>${currentLabel}</strong></button>
+    </div>` + buildBidGrid(minValue, 'game:confirmRebid');
+  $actionPanel.innerHTML = html;
+  attachBidListeners();
+  document.getElementById('keep-bid-btn')!.addEventListener('click', () => {
+    socket.emit('game:confirmRebid', { contract: { type: 'pass' } });
   });
 }
 
@@ -375,7 +438,7 @@ function renderHandResult(): void {
     $nextHandBtn.disabled = false;
   }
 
-  $resultHeader.innerHTML = '<th>Player</th><th>Tricks</th><th>Taškai+</th><th>Bauda</th><th>Whist+</th>';
+  $resultHeader.innerHTML = '<th>Player</th><th>Home</th><th>Taškai+</th><th>Bauda</th><th>Whist+</th>';
   $resultBody.innerHTML = players.map(p => {
     const delta = handResult.scoreDeltas.find(d => d.seat === p.seatIndex);
     const whistTotal = (delta?.whistLeftDelta ?? 0) + (delta?.whistRightDelta ?? 0);

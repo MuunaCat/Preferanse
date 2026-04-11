@@ -6,6 +6,7 @@ import { PreferanceGame } from './game/PreferanceGame';
 import {
   JoinPayload, BidPayload, DiscardPayload,
   WhistPayload, OpenChoicePayload, PlayCardPayload, SettingsPayload,
+  ChatPayload, ConfirmRebidPayload,
 } from './types';
 
 const app = express();
@@ -18,6 +19,9 @@ app.use(express.static(clientDist));
 app.get('*', (_req, res) => res.sendFile(path.join(clientDist, 'index.html')));
 
 const game = new PreferanceGame();
+
+interface ChatEntry { name: string; text: string; }
+const chatLog: ChatEntry[] = [];
 
 function broadcast(): void {
   for (const id of game.getAllPlayerIds()) {
@@ -102,10 +106,25 @@ io.on('connection', (socket: Socket) => {
   });
 
   socket.on('game:nextHand', () => {
-    // Any player can advance to next hand (after all acknowledge)
-    // Simple: first click advances
     game.nextHand();
     broadcast();
+  });
+
+  socket.on('game:confirmRebid', (payload: ConfirmRebidPayload) => {
+    const error = game.confirmRebid(socket.id, payload?.contract);
+    if (error) return err(socket, error);
+    broadcast();
+  });
+
+  socket.on('chat:message', (payload: ChatPayload) => {
+    const p = game.getPlayer(socket.id);
+    if (!p) return;
+    const text = (payload?.text ?? '').trim().slice(0, 200);
+    if (!text) return;
+    const entry: ChatEntry = { name: (p as any).name, text };
+    chatLog.push(entry);
+    if (chatLog.length > 50) chatLog.shift();
+    io.emit('chat:message', entry);
   });
 
   socket.on('disconnect', () => {

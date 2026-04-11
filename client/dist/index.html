@@ -8,158 +8,245 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #1a5c2a;
-      --surface: #0f3d1b;
+      --bg: #16532a;
+      --surface: #0e3b1c;
+      --surface2: #1a4d28;
       --text: #f0e6c8;
-      --accent: #c9a84c;
+      --accent: #d4a843;
       --danger: #c0392b;
-      --card-bg: #fdf6e3;
-      --card-border: #bbb;
+      --blue: #2980b9;
+      --purple: #8e44ad;
+      --card-bg: #fffdf7;
+      --card-border: #c8c0a8;
+      --suit-red: #c0392b;
+      --suit-blue: #2471a3;
     }
 
     body {
       background: var(--bg);
       color: var(--text);
       font-family: 'Segoe UI', sans-serif;
+      font-size: 16px;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
 
-    h1 { color: var(--accent); letter-spacing: 2px; padding: 16px 0 8px; font-size: 1.8rem; }
+    h1 {
+      color: var(--accent);
+      letter-spacing: 3px;
+      padding: 18px 0 10px;
+      font-size: 2.2rem;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
 
-    #app { width: 100%; max-width: 900px; padding: 8px 16px 32px; }
+    #app { width: 100%; max-width: 960px; padding: 8px 16px 32px; }
+
+    /* ---- Rules button (fixed) ---- */
+    #rules-btn {
+      position: fixed; top: 14px; right: 18px;
+      background: var(--accent); color: #1a1a1a;
+      border: none; border-radius: 6px; padding: 8px 16px;
+      font-weight: bold; font-size: 0.9rem; cursor: pointer;
+      z-index: 150; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      transition: opacity 0.2s;
+    }
+    #rules-btn:hover { opacity: 0.85; }
 
     /* ---- Lobby ---- */
-    #lobby { display: flex; flex-direction: column; gap: 12px; align-items: center; margin-top: 40px; }
+    #lobby { display: flex; flex-direction: column; gap: 14px; align-items: center; margin-top: 40px; }
     #lobby input, #lobby select {
-      padding: 10px 14px; border-radius: 6px; border: 1px solid var(--accent);
-      background: var(--surface); color: var(--text); font-size: 1rem; width: 260px;
+      padding: 12px 16px; border-radius: 8px; border: 2px solid var(--accent);
+      background: var(--surface); color: var(--text); font-size: 1.05rem; width: 280px;
     }
     button {
-      padding: 10px 24px; border-radius: 6px; border: none;
+      padding: 11px 26px; border-radius: 8px; border: none;
       background: var(--accent); color: #1a1a1a; font-weight: bold;
-      cursor: pointer; font-size: 1rem; transition: opacity 0.2s;
+      cursor: pointer; font-size: 1rem; transition: opacity 0.2s, transform 0.1s;
     }
-    button:hover { opacity: 0.85; }
-    button:disabled { opacity: 0.4; cursor: default; }
+    button:hover { opacity: 0.88; }
+    button:active { transform: scale(0.97); }
+    button:disabled { opacity: 0.35; cursor: default; transform: none; }
     button.danger { background: var(--danger); color: #fff; }
+    button.secondary { background: var(--surface2); color: var(--text); border: 2px solid var(--accent); }
 
-    #player-list { list-style: none; width: 260px; }
+    #player-list { list-style: none; width: 280px; }
     #player-list li {
-      padding: 6px 12px; background: var(--surface); border-radius: 4px;
-      margin-bottom: 4px; display: flex; justify-content: space-between;
+      padding: 8px 14px; background: var(--surface); border-radius: 6px;
+      margin-bottom: 5px; display: flex; justify-content: space-between;
+      font-size: 1rem;
     }
-    .badge { font-size: 0.7rem; background: var(--accent); color: #1a1a1a; border-radius: 3px; padding: 1px 5px; }
+    .badge {
+      font-size: 0.72rem; background: var(--accent); color: #1a1a1a;
+      border-radius: 3px; padding: 2px 6px; font-weight: bold;
+    }
 
     /* ---- Game table ---- */
-    #game { display: none; flex-direction: column; gap: 12px; }
+    #game { display: none; flex-direction: column; gap: 14px; }
 
     .info-bar {
-      display: flex; gap: 16px; align-items: center; font-size: 0.9rem;
-      background: var(--surface); border-radius: 6px; padding: 8px 14px;
+      display: flex; gap: 20px; align-items: center; font-size: 0.95rem;
+      background: var(--surface); border-radius: 8px; padding: 10px 16px;
+      border: 1px solid rgba(212,168,67,0.3);
     }
-    .info-bar span { color: var(--accent); }
+    .info-bar span { color: var(--accent); font-weight: bold; font-size: 1rem; }
 
     /* Players around table */
-    #table-players {
-      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
-    }
+    #table-players { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
     .player-box {
-      background: var(--surface); border-radius: 8px; padding: 10px;
-      border: 2px solid transparent; transition: border-color 0.3s;
+      background: var(--surface); border-radius: 10px; padding: 12px 14px;
+      border: 2px solid transparent; transition: border-color 0.3s, box-shadow 0.3s;
     }
-    .player-box.active { border-color: var(--accent); }
-    .player-box .pname { font-weight: bold; font-size: 1rem; margin-bottom: 4px; }
-    .player-box .pscore { font-size: 0.8rem; color: #aaa; }
-    .player-box .pcards { font-size: 0.8rem; color: #ccc; }
-    .dealer-marker { color: var(--accent); font-size: 0.75rem; }
+    .player-box.active { border-color: var(--accent); box-shadow: 0 0 12px rgba(212,168,67,0.3); }
+    .player-box .pname { font-weight: bold; font-size: 1.1rem; margin-bottom: 5px; }
+    .player-box .pscore { font-size: 0.82rem; color: #bbb; margin-top: 3px; }
+    .player-box .pcards { font-size: 0.85rem; color: #ccc; }
+    .dealer-marker { color: var(--accent); font-size: 0.78rem; }
 
     /* Trick area */
     #trick-area {
-      min-height: 120px; background: var(--surface); border-radius: 8px;
-      display: flex; align-items: center; justify-content: center; gap: 12px;
-      padding: 12px; flex-wrap: wrap;
+      min-height: 130px; background: var(--surface); border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; gap: 14px;
+      padding: 14px; flex-wrap: wrap;
     }
 
     /* Cards */
     .card {
-      background: var(--card-bg); border: 1px solid var(--card-border);
-      border-radius: 6px; padding: 6px 10px; cursor: pointer;
-      font-size: 1.1rem; min-width: 44px; text-align: center;
+      background: var(--card-bg); border: 2px solid var(--card-border);
+      border-radius: 8px; padding: 8px 14px; cursor: pointer;
+      font-size: 1.4rem; font-weight: bold; min-width: 54px; text-align: center;
       transition: transform 0.15s, box-shadow 0.15s;
       user-select: none; color: #1a1a1a;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
     }
-    .card:hover { transform: translateY(-4px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-    .card.red { color: #c0392b; }
-    .card.disabled { opacity: 0.5; cursor: default; transform: none; }
+    .card:hover { transform: translateY(-6px); box-shadow: 0 6px 16px rgba(0,0,0,0.35); }
+    .card.red { color: var(--suit-red); }
+    .card.disabled { opacity: 0.45; cursor: default; transform: none; box-shadow: none; }
     .card.in-trick { cursor: default; }
-    .card.selected { outline: 3px solid var(--accent); transform: translateY(-6px); }
+    .card.selected { outline: 3px solid var(--accent); transform: translateY(-8px); box-shadow: 0 6px 16px rgba(212,168,67,0.4); }
 
     #my-hand {
-      display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
-      min-height: 60px; padding: 8px; background: rgba(0,0,0,0.15); border-radius: 8px;
+      display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+      min-height: 70px; padding: 10px; background: rgba(0,0,0,0.18); border-radius: 10px;
     }
 
     /* Action panel */
     #action-panel {
-      background: var(--surface); border-radius: 8px; padding: 14px;
-      min-height: 60px; display: flex; flex-direction: column; gap: 8px;
+      background: var(--surface); border-radius: 10px; padding: 16px;
+      min-height: 70px; display: flex; flex-direction: column; gap: 10px;
     }
-    #action-panel h3 { color: var(--accent); margin-bottom: 4px; }
-    .action-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    #action-panel h3 { color: var(--accent); margin-bottom: 6px; font-size: 1.1rem; }
+    .action-row { display: flex; gap: 10px; flex-wrap: wrap; }
 
     /* Bid grid */
     #bid-grid {
-      display: grid; grid-template-columns: repeat(5, auto); gap: 4px;
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;
+      max-width: 380px;
     }
-    #bid-grid button {
-      font-size: 0.8rem; padding: 6px 8px; min-width: 56px;
+    .bid-btn {
+      background: #fff; color: #1a1a1a;
+      border: 2px solid #888; border-radius: 7px;
+      padding: 9px 6px; font-size: 1.05rem; font-weight: bold;
+      cursor: pointer; transition: transform 0.1s, opacity 0.15s;
+      text-align: center;
     }
-    #bid-grid .bid-red { color: #c0392b; background: #f5e6e6; }
-    #bid-grid .bid-red:hover { opacity: 0.85; }
+    .bid-btn:hover:not([disabled]) { transform: translateY(-2px); opacity: 0.88; }
+    .bid-btn[disabled] { opacity: 0.25; cursor: default; transform: none; }
+    .bid-btn.bid-red { color: var(--suit-red); border-color: var(--suit-red); }
+    .bid-btn.bid-blue { color: var(--suit-blue); border-color: var(--suit-blue); }
+    .bid-btn.bid-misere { color: var(--purple); border-color: var(--purple); font-style: italic; font-size: 1rem; }
 
     /* Scoring panel */
     #bullet-panel {
-      background: var(--surface); border-radius: 8px; padding: 12px;
+      background: var(--surface); border-radius: 10px; padding: 14px;
     }
-    #bullet-panel h3 { color: var(--accent); margin-bottom: 8px; }
-    #bullet-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    #bullet-panel h3 { color: var(--accent); margin-bottom: 10px; font-size: 1.1rem; }
+    #bullet-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
     #bullet-table th, #bullet-table td {
-      border: 1px solid #444; padding: 4px 8px; text-align: center;
+      border: 1px solid #3a5a42; padding: 5px 10px; text-align: center;
     }
-    #bullet-table th { background: rgba(0,0,0,0.3); color: var(--accent); }
+    #bullet-table th { background: rgba(0,0,0,0.35); color: var(--accent); font-size: 0.95rem; }
 
-    /* Status message */
-    #status { text-align: center; font-size: 0.95rem; color: #ccc; min-height: 24px; }
-    #error-msg { color: var(--danger); text-align: center; min-height: 20px; font-size: 0.9rem; }
+    /* Status / error */
+    #status { text-align: center; font-size: 1rem; color: #ccc; min-height: 26px; }
+    #error-msg { color: var(--danger); text-align: center; min-height: 22px; font-size: 0.92rem; }
 
     /* Talon */
-    #talon-area { display: flex; gap: 8px; justify-content: center; padding: 4px 0; }
+    #talon-area {
+      display: flex; gap: 10px; justify-content: center;
+      padding: 6px 0; align-items: center; min-height: 30px;
+    }
 
     /* Hand result overlay */
     #hand-result {
-      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.78);
       align-items: center; justify-content: center; z-index: 100;
     }
     #hand-result.show { display: flex; }
     #hand-result-box {
-      background: var(--surface); border-radius: 10px; padding: 24px;
-      min-width: 320px; text-align: center; border: 2px solid var(--accent);
+      background: var(--surface); border-radius: 12px; padding: 28px;
+      min-width: 340px; text-align: center; border: 2px solid var(--accent);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
     }
-    #hand-result-box h2 { color: var(--accent); margin-bottom: 12px; }
-    #hand-result-box table { width: 100%; margin: 12px 0; font-size: 0.9rem; }
+    #hand-result-box h2 { color: var(--accent); margin-bottom: 14px; font-size: 1.3rem; }
+    #hand-result-box table { width: 100%; margin: 14px 0; font-size: 0.92rem; }
     #hand-result-box td, #hand-result-box th {
-      padding: 4px 10px; border: 1px solid #444;
+      padding: 6px 12px; border: 1px solid #3a5a42;
     }
     #hand-result-box th { color: var(--accent); }
 
+    /* Chat panel */
+    #chat-panel {
+      background: var(--surface); border-radius: 10px; padding: 14px;
+      margin-top: 4px; border: 1px solid rgba(212,168,67,0.2);
+    }
+    #chat-panel h3 { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+    #chat-messages {
+      height: 140px; overflow-y: auto; background: rgba(0,0,0,0.25);
+      border-radius: 6px; padding: 8px 10px; margin-bottom: 10px; font-size: 0.9rem;
+    }
+    .chat-msg { margin-bottom: 5px; line-height: 1.4; }
+    .chat-name { color: var(--accent); font-weight: bold; }
+    #chat-input-row { display: flex; gap: 8px; }
+    #chat-input {
+      flex: 1; padding: 9px 12px; border-radius: 7px; border: 1px solid #3a5a42;
+      background: var(--surface2); color: var(--text); font-size: 0.95rem;
+    }
+    #chat-send-btn { padding: 9px 18px; font-size: 0.95rem; }
+
+    /* Rules modal */
+    #rules-modal {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.82);
+      align-items: center; justify-content: center; z-index: 200;
+    }
+    #rules-modal.show { display: flex; }
+    #rules-box {
+      background: var(--surface); border-radius: 12px; padding: 28px 32px;
+      max-width: 620px; width: 92%; max-height: 85vh; overflow-y: auto;
+      border: 2px solid var(--accent); position: relative;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+    }
+    #rules-box h2 { color: var(--accent); margin-bottom: 16px; font-size: 1.4rem; }
+    #rules-box h3 { color: var(--accent); margin: 14px 0 6px; font-size: 1.05rem; }
+    #rules-box p, #rules-box li { font-size: 0.95rem; color: var(--text); line-height: 1.6; margin-bottom: 6px; }
+    #rules-box ul { padding-left: 20px; }
+    #rules-close-btn {
+      position: absolute; top: 14px; right: 16px;
+      background: transparent; color: var(--text); border: none;
+      font-size: 1.6rem; padding: 2px 10px; cursor: pointer; line-height: 1;
+    }
+    #rules-close-btn:hover { color: var(--accent); }
+
     .hidden { display: none !important; }
+
+    /* Settings */
+    #settings-area { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; }
   </style>
-  <script type="module" crossorigin src="/assets/index-DSpDmm9y.js"></script>
+  <script type="module" crossorigin src="/assets/index-BPcI3eFN.js"></script>
 </head>
 <body>
+  <button id="rules-btn">Rules</button>
   <h1>Preferanse</h1>
   <div id="app">
 
@@ -167,8 +254,8 @@
     <div id="lobby">
       <input id="name-input" type="text" placeholder="Your name" maxlength="20" />
       <div id="settings-area" class="hidden">
-        <label style="color:var(--accent);font-size:0.9rem">Bullet size: </label>
-        <input id="bullet-size-input" type="number" min="5" max="100" value="10" style="width:80px" />
+        <label style="color:var(--accent);font-size:0.95rem">Taškai target:</label>
+        <input id="bullet-size-input" type="number" min="5" max="100" value="10" style="width:80px;padding:8px" />
         <button id="set-settings-btn">Set</button>
       </div>
       <button id="join-btn">Join Game</button>
@@ -189,7 +276,7 @@
 
       <div id="talon-area"></div>
 
-      <div id="trick-area"><span style="color:#666">Trick will appear here</span></div>
+      <div id="trick-area"><span style="color:#555">Trick will appear here</span></div>
 
       <div id="my-hand"></div>
 
@@ -208,6 +295,16 @@
       <div id="error-msg" style="margin-top:8px"></div>
     </div>
 
+    <!-- CHAT -->
+    <div id="chat-panel">
+      <h3>Chat</h3>
+      <div id="chat-messages"></div>
+      <div id="chat-input-row">
+        <input id="chat-input" type="text" placeholder="Type a message..." maxlength="200" />
+        <button id="chat-send-btn">Send</button>
+      </div>
+    </div>
+
     <!-- HAND RESULT OVERLAY -->
     <div id="hand-result">
       <div id="hand-result-box">
@@ -221,5 +318,67 @@
     </div>
 
   </div>
+
+  <!-- RULES MODAL -->
+  <div id="rules-modal">
+    <div id="rules-box">
+      <button id="rules-close-btn">×</button>
+      <h2>Preferanse Rules</h2>
+
+      <h3>Setup</h3>
+      <ul>
+        <li>3 players, 32-card deck (7 through Ace in all 4 suits)</li>
+        <li>Each player gets <strong>10 cards</strong>; 2 go face-down as the <strong>Talon</strong></li>
+      </ul>
+
+      <h3>Bidding</h3>
+      <ul>
+        <li>Starting left of dealer, players bid contracts or pass</li>
+        <li>Bids: <strong>6–10 in each suit (♠ ♣ ♦ ♥)</strong>, <strong>NS</strong> (No Suit / no trump), or <strong>Misère</strong></li>
+        <li>Suit strength (weakest → strongest): ♠ ♣ ♦ ♥ NS</li>
+        <li>Bidding ends when 2 players pass after the highest bidder</li>
+        <li>If all 3 pass → <strong>Raspasovka</strong> (take as few tricks as possible)</li>
+      </ul>
+
+      <h3>Talon & Discard</h3>
+      <ul>
+        <li>The winning bidder picks up the 2 talon cards (everyone sees them)</li>
+        <li>They may raise their bid, then discard 2 cards <strong>secretly</strong></li>
+      </ul>
+
+      <h3>Whisting</h3>
+      <ul>
+        <li>The other 2 players each decide: <strong>Whist</strong> (play against bidder) or <strong>Pass</strong></li>
+        <li>If only 1 whisters: they choose to play <strong>Open</strong> (show their hand) or <strong>Closed</strong></li>
+      </ul>
+
+      <h3>Playing</h3>
+      <ul>
+        <li>10 tricks are played; trump = bid suit (no trump for NS; Misère = no trump, bidder wins by taking 0 tricks)</li>
+        <li>Must follow suit if possible; otherwise play any card</li>
+        <li><strong>Home</strong> = number of tricks taken</li>
+      </ul>
+
+      <h3>Scoring</h3>
+      <ul>
+        <li><strong>Bidder makes contract</strong> → earns points in Taškai column</li>
+        <li><strong>Bidder fails</strong> → penalty (Bauda) added to their pool</li>
+        <li><strong>Whisters</strong> earn Whist points for tricks taken</li>
+        <li><strong>Raspasovka</strong> → each trick taken = penalty to that player's pool</li>
+        <li>Game ends when any player's Taškai total reaches the target</li>
+      </ul>
+
+      <h3>Contract Values</h3>
+      <ul>
+        <li>6 = 2 pts, 7 = 4 pts, 8 = 6 pts, 9 = 8 pts, 10 = 10 pts</li>
+        <li>Misère = 10 pts (bidder must take 0 tricks)</li>
+        <li>NS adds no extra value — same as suit bids at that level</li>
+      </ul>
+
+      <br/>
+      <button onclick="document.getElementById('rules-modal').classList.remove('show')" style="width:100%">Close</button>
+    </div>
+  </div>
+
 </body>
 </html>

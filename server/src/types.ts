@@ -22,6 +22,7 @@ export type GamePhase =
   | 'lobby'
   | 'bidding'
   | 'talon'        // winner picks up 2 talon cards
+  | 'talon_rebid'  // bidder can raise their bid after seeing talon
   | 'discarding'   // winner discards 2 cards
   | 'whisting'     // opponents choose whist/pass
   | 'open_choice'  // the one who whisted chooses open/closed
@@ -140,4 +141,12 @@ export interface PlayCardPayload {
 
 export interface SettingsPayload {
   bulletSize: number;
+}
+
+export interface ChatPayload {
+  text: string;
+}
+
+export interface ConfirmRebidPayload {
+  contract: Omit<Contract, 'bidValue'>; // pass = keep current bid
 }

@@ -19,7 +19,7 @@ export function contractLabel(c: Contract): string {
   if (c.type === 'pass') return 'Pass';
   if (c.type === 'misere') return 'Misère';
   const sym: Record<string, string> = { spades: '♠', clubs: '♣', diamonds: '♦', hearts: '♥' };
-  if (c.type === 'sans') return `${c.level} Sans`;
+  if (c.type === 'sans') return `${c.level} NS`;
   return `${c.level}${sym[c.suit!]}`;
 }
 

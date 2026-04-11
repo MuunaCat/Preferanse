@@ -33,7 +33,6 @@ io.on('connection', (socket: Socket) => {
   console.log('connect', socket.id);
 
   socket.on('lobby:join', (payload: JoinPayload) => {
-    console.log('lobby:join received', payload);
     const name = (payload?.name ?? '').trim().slice(0, 20);
     if (!name) return err(socket, 'Name required');
     if (game.playerCount() >= 3) return err(socket, 'Game is full');

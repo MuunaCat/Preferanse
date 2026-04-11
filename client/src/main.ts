@@ -1,7 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import type { ClientGameState, Card, Contract, WhistChoice, OpenChoice } from './types';
 import { contractLabel, bidValue, makeContractRaw, validBids } from './bidding';
-import { cardLabel, suitClass } from './cards';
+import { cardLabel, suitClass, sortHand } from './cards';
 
 const socket: Socket = io();
 
@@ -56,10 +56,8 @@ socket.on('game:error', (msg: string) => {
 // ---- Lobby controls ----
 $joinBtn.addEventListener('click', () => {
   const name = $nameInput.value.trim();
-  console.log('Join clicked, name:', name, 'socket connected:', socket.connected);
   if (!name) { showError('Enter a name'); return; }
   socket.emit('lobby:join', { name });
-  console.log('lobby:join emitted');
 });
 
 $setSettingsBtn.addEventListener('click', () => {
@@ -147,10 +145,13 @@ function renderTablePlayers(): void {
         </div>
         <div class="pcards">${p.cardCount} cards</div>
         <div class="pscore">
-          Bullet: ${p.score.bulletEntries.reduce((a, b) => a + b, 0)} /
+          Taškai: ${p.score.bulletEntries.reduce((a, b) => a + b, 0)} /
           Pool: ${p.score.pool} /
-          WL: ${p.score.whistFromLeft} WR: ${p.score.whistFromRight}
+          WK: ${p.score.whistFromLeft} WD: ${p.score.whistFromRight}
         </div>
+        ${(state!.phase === 'playing' || state!.phase === 'raspasovka')
+          ? `<div class="pcards" style="color:var(--accent)">Tricks: ${state!.tricksWon[p.seatIndex]}</div>`
+          : ''}
       </div>
     `;
   }).join('');
@@ -180,7 +181,8 @@ function renderTrick(): void {
 }
 
 function renderHand(): void {
-  const { myHand, phase, activeSeat, mySeat, currentBid, openCards, openPlay } = state!;
+  const { phase, activeSeat, mySeat, currentBid, openCards, openPlay } = state!;
+  const myHand = sortHand(state!.myHand);
 
   // Show open cards separately if applicable
   let openSection = '';
@@ -295,16 +297,38 @@ function renderActionPanel(): void {
 
 function renderBidPanel(): void {
   const { currentBid } = state!;
-  const bids = validBids(currentBid);
+  const minValue = currentBid ? currentBid.bidValue + 1 : 0;
+
+  const suits = ['spades', 'clubs', 'diamonds', 'hearts'] as const;
+  const suitSymbols: Record<string, string> = { spades: '♠', clubs: '♣', diamonds: '♦', hearts: '♥' };
+  const redSuits = new Set(['diamonds', 'hearts']);
 
   let html = `<h3>Your bid</h3><div id="bid-grid">`;
-  for (const b of bids) {
-    html += `<button class="bid-btn" data-bid='${JSON.stringify(b)}'>${contractLabel(b)}</button>`;
+
+  for (let level = 6; level <= 10; level++) {
+    for (const suit of suits) {
+      const contract = makeContractRaw({ type: 'suit', level: level as 6|7|8|9|10, suit });
+      const disabled = contract.bidValue < minValue;
+      const redClass = redSuits.has(suit) ? 'bid-red' : '';
+      html += `<button class="bid-btn ${redClass}" ${disabled ? 'disabled' : ''} data-bid='${JSON.stringify(contract)}'>${level}${suitSymbols[suit]}</button>`;
+    }
+    const sansContract = makeContractRaw({ type: 'sans', level: level as 6|7|8|9|10 });
+    const sansDisabled = sansContract.bidValue < minValue;
+    html += `<button class="bid-btn" ${sansDisabled ? 'disabled' : ''} data-bid='${JSON.stringify(sansContract)}'>${level} NS</button>`;
+
+    if (level === 6) {
+      html += `</div><div style="text-align:center;margin:4px 0">`;
+      const misereContract = makeContractRaw({ type: 'misere' });
+      const misereDisabled = misereContract.bidValue < minValue;
+      html += `<button class="bid-btn" ${misereDisabled ? 'disabled' : ''} data-bid='${JSON.stringify(misereContract)}'>Misère</button>`;
+      html += `</div><div id="bid-grid">`;
+    }
   }
-  html += `</div><button class="danger" id="pass-bid-btn" style="margin-top:8px">Pass</button>`;
+
+  html += `</div><div style="margin-top:8px"><button class="danger" id="pass-bid-btn">Pass</button></div>`;
   $actionPanel.innerHTML = html;
 
-  $actionPanel.querySelectorAll('.bid-btn').forEach(el => {
+  $actionPanel.querySelectorAll('.bid-btn:not([disabled])').forEach(el => {
     el.addEventListener('click', () => {
       const b = JSON.parse(el.getAttribute('data-bid')!);
       socket.emit('game:bid', { contract: b });
@@ -327,12 +351,12 @@ function renderBullet(): void {
       '</tr>';
   }
   rows += `<tr style="font-weight:bold">
-    <td>Total</td>
+    <td>Viso</td>
     ${players.map(p => `<td>${p.score.bulletEntries.reduce((a, b) => a + b, 0)}</td>`).join('')}
   </tr>`;
-  rows += `<tr><td>Pool</td>${players.map(p => `<td style="color:var(--danger)">${p.score.pool}</td>`).join('')}</tr>`;
-  rows += `<tr><td>W-Left</td>${players.map(p => `<td>${p.score.whistFromLeft}</td>`).join('')}</tr>`;
-  rows += `<tr><td>W-Right</td>${players.map(p => `<td>${p.score.whistFromRight}</td>`).join('')}</tr>`;
+  rows += `<tr><td>Bauda</td>${players.map(p => `<td style="color:var(--danger)">${p.score.pool ? '-' + p.score.pool : '—'}</td>`).join('')}</tr>`;
+  rows += `<tr><td>WK</td>${players.map(p => `<td>${p.score.whistFromLeft || '—'}</td>`).join('')}</tr>`;
+  rows += `<tr><td>WD</td>${players.map(p => `<td>${p.score.whistFromRight || '—'}</td>`).join('')}</tr>`;
 
   $bulletBody.innerHTML = rows;
 }
@@ -351,14 +375,16 @@ function renderHandResult(): void {
     $nextHandBtn.disabled = false;
   }
 
-  $resultHeader.innerHTML = '<th>Player</th><th>Tricks</th><th>Bullet±</th><th>Pool±</th>';
+  $resultHeader.innerHTML = '<th>Player</th><th>Tricks</th><th>Taškai+</th><th>Bauda</th><th>Whist+</th>';
   $resultBody.innerHTML = players.map(p => {
     const delta = handResult.scoreDeltas.find(d => d.seat === p.seatIndex);
+    const whistTotal = (delta?.whistLeftDelta ?? 0) + (delta?.whistRightDelta ?? 0);
     return `<tr>
       <td>${p.name}${handResult.declarer === p.seatIndex ? ' (D)' : ''}</td>
       <td>${handResult.tricksWon[p.seatIndex]}</td>
       <td>${delta?.bulletDelta ? '+' + delta.bulletDelta : '—'}</td>
-      <td>${delta?.poolDelta ? '+' + delta.poolDelta : '—'}</td>
+      <td style="color:var(--danger)">${delta?.poolDelta ? '-' + delta.poolDelta : '—'}</td>
+      <td>${whistTotal ? '+' + whistTotal : '—'}</td>
     </tr>`;
   }).join('');
 

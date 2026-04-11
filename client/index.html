@@ -117,6 +117,8 @@
     #bid-grid button {
       font-size: 0.8rem; padding: 6px 8px; min-width: 56px;
     }
+    #bid-grid .bid-red { color: #c0392b; background: #f5e6e6; }
+    #bid-grid .bid-red:hover { opacity: 0.85; }
 
     /* Scoring panel */
     #bullet-panel {
@@ -178,8 +180,8 @@
     <div id="game">
       <div class="info-bar">
         <div>Hand: <span id="hand-num">1</span></div>
-        <div>Bullet: <span id="bullet-size-display">10</span></div>
-        <div>Contract: <span id="current-bid-display">—</span></div>
+        <div>Taškai: <span id="bullet-size-display">10</span></div>
+        <div>Bid: <span id="current-bid-display">—</span></div>
       </div>
 
       <div id="table-players"></div>
@@ -195,7 +197,7 @@
       </div>
 
       <div id="bullet-panel">
-        <h3>Bullet (Пуля)</h3>
+        <h3>Taškai</h3>
         <table id="bullet-table">
           <thead><tr id="bullet-header"></tr></thead>
           <tbody id="bullet-body"></tbody>

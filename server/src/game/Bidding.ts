@@ -35,7 +35,7 @@ export function contractLabel(c: Contract): string {
   const suitSymbol: Record<string, string> = {
     spades: '♠', clubs: '♣', diamonds: '♦', hearts: '♥',
   };
-  if (c.type === 'sans') return `${c.level} Sans`;
+  if (c.type === 'sans') return `${c.level} NS`;
   return `${c.level}${suitSymbol[c.suit!]}`;
 }
 

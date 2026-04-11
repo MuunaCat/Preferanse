@@ -56,8 +56,10 @@ socket.on('game:error', (msg: string) => {
 // ---- Lobby controls ----
 $joinBtn.addEventListener('click', () => {
   const name = $nameInput.value.trim();
+  console.log('Join clicked, name:', name, 'socket connected:', socket.connected);
   if (!name) { showError('Enter a name'); return; }
   socket.emit('lobby:join', { name });
+  console.log('lobby:join emitted');
 });
 
 $setSettingsBtn.addEventListener('click', () => {

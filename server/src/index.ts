@@ -35,6 +35,7 @@ function err(socket: Socket, msg: string): void {
 
 io.on('connection', (socket: Socket) => {
   console.log('connect', socket.id);
+  socket.emit('game:state', game.getStateFor(socket.id));
 
   socket.on('lobby:join', (payload: JoinPayload) => {
     const name = (payload?.name ?? '').trim().slice(0, 20);

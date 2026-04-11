@@ -2,7 +2,7 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Build client
+# Build client (v2)
 COPY client/package*.json ./client/
 RUN cd client && npm install
 

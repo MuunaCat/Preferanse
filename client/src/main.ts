@@ -1,57 +1,93 @@
 import { io, Socket } from 'socket.io-client';
-import type { ClientGameState, Card, Contract, WhistChoice, OpenChoice } from './types';
-import { contractLabel, bidValue, makeContractRaw } from './bidding';
+import type { ClientGameState, Card, Contract } from './types';
+import { contractLabel, makeContractRaw } from './bidding';
 import { cardLabel, suitClass, sortHand } from './cards';
+import { T, setLang, getLang, type Lang, TRANSLATIONS } from './i18n';
 
 const socket: Socket = io();
 
-// ---- State ----
 let state: ClientGameState | null = null;
 let mySocketId: string | null = null;
 let selectedCards: Card[] = [];
 
-// ---- Elements ----
-const $lobby = document.getElementById('lobby')!;
-const $game = document.getElementById('game')!;
-const $nameInput = document.getElementById('name-input') as HTMLInputElement;
-const $joinBtn = document.getElementById('join-btn') as HTMLButtonElement;
-const $startBtn = document.getElementById('start-btn') as HTMLButtonElement;
-const $playerList = document.getElementById('player-list')!;
+// ---- DOM refs ----
+const $lobby        = document.getElementById('lobby')!;
+const $game         = document.getElementById('game')!;
+const $nameInput    = document.getElementById('name-input') as HTMLInputElement;
+const $joinBtn      = document.getElementById('join-btn') as HTMLButtonElement;
+const $startBtn     = document.getElementById('start-btn') as HTMLButtonElement;
+const $playerList   = document.getElementById('player-list')!;
 const $settingsArea = document.getElementById('settings-area')!;
-const $bulletSizeInput = document.getElementById('bullet-size-input') as HTMLInputElement;
-const $setSettingsBtn = document.getElementById('set-settings-btn') as HTMLButtonElement;
+const $bulletSizeInput  = document.getElementById('bullet-size-input') as HTMLInputElement;
+const $setSettingsBtn   = document.getElementById('set-settings-btn') as HTMLButtonElement;
 const $tablePlayers = document.getElementById('table-players')!;
-const $trickArea = document.getElementById('trick-area')!;
-const $myHand = document.getElementById('my-hand')!;
-const $actionPanel = document.getElementById('action-panel')!;
-const $status = document.getElementById('status')!;
-const $handNum = document.getElementById('hand-num')!;
-const $bulletSizeDisplay = document.getElementById('bullet-size-display')!;
-const $currentBidDisplay = document.getElementById('current-bid-display')!;
+const $trickArea    = document.getElementById('trick-area')!;
+const $myHand       = document.getElementById('my-hand')!;
+const $actionPanel  = document.getElementById('action-panel')!;
+const $handNum      = document.getElementById('hand-num')!;
+const $bulletSizeDisplay  = document.getElementById('bullet-size-display')!;
+const $currentBidDisplay  = document.getElementById('current-bid-display')!;
 const $bulletHeader = document.getElementById('bullet-header')!;
-const $bulletBody = document.getElementById('bullet-body')!;
-const $talonArea = document.getElementById('talon-area')!;
-const $handResult = document.getElementById('hand-result')!;
-const $resultTitle = document.getElementById('result-title')!;
+const $bulletBody   = document.getElementById('bullet-body')!;
+const $talonArea    = document.getElementById('talon-area')!;
+const $handResult   = document.getElementById('hand-result')!;
+const $resultTitle  = document.getElementById('result-title')!;
 const $resultHeader = document.getElementById('result-header')!;
-const $resultBody = document.getElementById('result-body')!;
-const $nextHandBtn = document.getElementById('next-hand-btn') as HTMLButtonElement;
+const $resultBody   = document.getElementById('result-body')!;
+const $nextHandBtn  = document.getElementById('next-hand-btn') as HTMLButtonElement;
 const $errorMsgLobby = document.getElementById('error-msg')!;
-const $errorMsgGame = document.querySelectorAll('#game #error-msg')[0] as HTMLElement;
+const $errorMsgGame  = document.querySelectorAll('#game #error-msg')[0] as HTMLElement;
+
+// ---- Suit background ----
+(function() {
+  const bg = document.querySelector('.suit-bg') as HTMLElement;
+  if (bg) bg.textContent = Array(250).fill('♠♣♦♥').join('  ');
+})();
+
+// ---- Language ----
+function applyLang(): void {
+  // Static labels
+  $nameInput.placeholder = T.yourName;
+  $joinBtn.textContent = T.joinGame;
+  $setSettingsBtn.textContent = T.set;
+  document.getElementById('label-taskai-target')!.textContent = T.taškaiTarget + ':';
+  document.getElementById('rules-btn')!.textContent = T.rules;
+  document.getElementById('chat-title')!.textContent = T.chat;
+  document.getElementById('chat-send-btn')!.textContent = T.send;
+  (document.getElementById('chat-input') as HTMLInputElement).placeholder = T.typeMessage;
+  document.getElementById('label-hand')!.textContent = T.hand;
+  document.getElementById('label-taskai')!.textContent = T.taskai;
+  document.getElementById('label-bid')!.textContent = T.bid;
+  document.getElementById('bullet-panel-title')!.textContent = T.taskai;
+  document.getElementById('next-hand-btn')!.textContent = T.nextHand;
+  document.getElementById('rules-title-text')!.textContent = T.rulesTitle;
+  document.getElementById('rules-content')!.innerHTML = T.rulesHtml;
+  document.getElementById('rules-close-bottom')!.textContent = T.close;
+  // Lang buttons
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    (btn as HTMLElement).classList.toggle('active', btn.getAttribute('data-lang') === getLang());
+  });
+  // Start button
+  if (state?.phase === 'lobby') renderLobby();
+  else if (state) render();
+}
+
+document.querySelectorAll('.lang-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    setLang(btn.getAttribute('data-lang') as Lang);
+    applyLang();
+  });
+});
 
 // ---- Socket events ----
-socket.on('connect', () => {
-  mySocketId = socket.id ?? null;
-});
+socket.on('connect', () => { mySocketId = socket.id ?? null; });
 
 socket.on('game:state', (s: ClientGameState) => {
   state = s;
   render();
 });
 
-socket.on('game:error', (msg: string) => {
-  showError(msg);
-});
+socket.on('game:error', (msg: string) => { showError(msg); });
 
 socket.on('chat:message', (entry: { name: string; text: string }) => {
   const $msgs = document.getElementById('chat-messages')!;
@@ -62,10 +98,28 @@ socket.on('chat:message', (entry: { name: string; text: string }) => {
   $msgs.scrollTop = $msgs.scrollHeight;
 });
 
-// ---- Chat controls ----
+// ---- Lobby controls ----
+$joinBtn.addEventListener('click', () => {
+  const name = $nameInput.value.trim();
+  if (!name) { showError(T.yourName); return; }
+  socket.emit('lobby:join', { name });
+});
+
+$setSettingsBtn.addEventListener('click', () => {
+  socket.emit('lobby:setSettings', { bulletSize: parseInt($bulletSizeInput.value) });
+});
+
+$startBtn.addEventListener('click', () => { socket.emit('lobby:start'); });
+
+$nextHandBtn.addEventListener('click', () => {
+  socket.emit('game:nextHand');
+  $handResult.classList.remove('show');
+});
+
+// ---- Chat ----
 document.getElementById('chat-send-btn')!.addEventListener('click', sendChat);
 document.getElementById('chat-input')!.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') sendChat();
+  if ((e as KeyboardEvent).key === 'Enter') sendChat();
 });
 function sendChat() {
   const input = document.getElementById('chat-input') as HTMLInputElement;
@@ -75,34 +129,19 @@ function sendChat() {
   input.value = '';
 }
 
-// ---- Rules controls ----
+// ---- Rules ----
 document.getElementById('rules-btn')!.addEventListener('click', () => {
   document.getElementById('rules-modal')!.classList.add('show');
 });
 document.getElementById('rules-close-btn')!.addEventListener('click', () => {
   document.getElementById('rules-modal')!.classList.remove('show');
 });
-
-// ---- Lobby controls ----
-$joinBtn.addEventListener('click', () => {
-  const name = $nameInput.value.trim();
-  if (!name) { showError('Enter a name'); return; }
-  socket.emit('lobby:join', { name });
+document.getElementById('rules-close-bottom')!.addEventListener('click', () => {
+  document.getElementById('rules-modal')!.classList.remove('show');
 });
 
-$setSettingsBtn.addEventListener('click', () => {
-  const size = parseInt($bulletSizeInput.value);
-  socket.emit('lobby:setSettings', { bulletSize: size });
-});
-
-$startBtn.addEventListener('click', () => {
-  socket.emit('lobby:start');
-});
-
-$nextHandBtn.addEventListener('click', () => {
-  socket.emit('game:nextHand');
-  $handResult.classList.remove('show');
-});
+// ---- Init ----
+applyLang();
 
 // ---- Render ----
 function render(): void {
@@ -117,7 +156,7 @@ function render(): void {
   $lobby.style.display = 'none';
   $game.style.display = 'flex';
   $game.style.flexDirection = 'column';
-  $game.style.gap = '12px';
+  $game.style.gap = '14px';
 
   renderInfoBar();
   renderTablePlayers();
@@ -138,7 +177,7 @@ function renderLobby(): void {
 
   const players = state!.players;
   $playerList.innerHTML = players.map((p, i) => `
-    <li>${p.name} ${i === 0 ? '<span class="badge">Host</span>' : ''}</li>
+    <li>${p.name} ${i === 0 ? `<span class="badge">${T.host}</span>` : ''}</li>
   `).join('');
 
   const joined = players.some(p => p.id === mySocketId);
@@ -151,8 +190,8 @@ function renderLobby(): void {
 
   $startBtn.disabled = players.length < 3 || !isHost;
   $startBtn.textContent = players.length < 3
-    ? `Start Game (${players.length}/3 players)`
-    : 'Start Game';
+    ? `${T.startGame} (${players.length}/3 — ${T.needPlayers})`
+    : T.startGame;
 }
 
 function renderInfoBar(): void {
@@ -167,21 +206,20 @@ function renderTablePlayers(): void {
     const isActive = p.seatIndex === activeSeat;
     const isDealer = p.seatIndex === dealer;
     const isMe = p.seatIndex === mySeat;
+    const showTricks = state!.phase === 'playing' || state!.phase === 'raspasovka';
     return `
       <div class="player-box ${isActive ? 'active' : ''}">
         <div class="pname">
           ${isMe ? '★ ' : ''}${p.name}
-          ${isDealer ? '<span class="dealer-marker">[D]</span>' : ''}
+          ${isDealer ? `<span class="dealer-marker">${T.dealer}</span>` : ''}
         </div>
         <div class="pcards">${p.cardCount} cards</div>
         <div class="pscore">
-          Taškai: ${p.score.bulletEntries.reduce((a, b) => a + b, 0)} /
-          Pool: ${p.score.pool} /
-          WK: ${p.score.whistFromLeft} WD: ${p.score.whistFromRight}
+          ${T.taskai}: ${p.score.bulletEntries.reduce((a, b) => a + b, 0)} /
+          ${T.pool}: ${p.score.pool} /
+          ${T.wk}: ${p.score.whistFromLeft} ${T.wd}: ${p.score.whistFromRight}
         </div>
-        ${(state!.phase === 'playing' || state!.phase === 'raspasovka')
-          ? `<div class="pcards" style="color:var(--accent);font-size:0.95rem;margin-top:4px">Home: ${state!.tricksWon[p.seatIndex]}</div>`
-          : ''}
+        ${showTricks ? `<div class="pcards" style="color:var(--accent);font-size:0.95rem;margin-top:4px">${T.home}: ${state!.tricksWon[p.seatIndex]}</div>` : ''}
       </div>
     `;
   }).join('');
@@ -190,11 +228,9 @@ function renderTablePlayers(): void {
 function renderTalon(): void {
   if (!state!.talon) { $talonArea.innerHTML = ''; return; }
   const phase = state!.phase;
-  const label = phase === 'talon_rebid'
-    ? 'Bidder picked up:'
-    : phase === 'talon'
-      ? 'Talon (open):'
-      : 'Talon:';
+  const label = phase === 'talon_rebid' ? T.bidderPickedUp
+    : phase === 'talon' ? T.talonOpen
+    : T.talonLabel;
   $talonArea.innerHTML = `<span style="color:var(--accent);margin-right:10px;font-size:0.95rem">${label}</span>` +
     state!.talon.map(c => `<div class="card ${suitClass(c)}">${cardLabel(c)}</div>`).join('');
 }
@@ -202,14 +238,14 @@ function renderTalon(): void {
 function renderTrick(): void {
   const { currentTrick, players } = state!;
   if (currentTrick.length === 0) {
-    $trickArea.innerHTML = '<span style="color:#666">Waiting for trick...</span>';
+    $trickArea.innerHTML = '<span style="color:#555">—</span>';
     return;
   }
   $trickArea.innerHTML = currentTrick.map(tc => {
     const p = players.find(pl => pl.seatIndex === tc.seat);
     return `
       <div style="text-align:center">
-        <div style="font-size:0.75rem;margin-bottom:2px;color:#aaa">${p?.name ?? '?'}</div>
+        <div style="font-size:0.78rem;margin-bottom:2px;color:#aaa">${p?.name ?? '?'}</div>
         <div class="card in-trick ${suitClass(tc.card)}">${cardLabel(tc.card)}</div>
       </div>
     `;
@@ -217,17 +253,16 @@ function renderTrick(): void {
 }
 
 function renderHand(): void {
-  const { phase, activeSeat, mySeat, currentBid, openCards, openPlay } = state!;
+  const { phase, activeSeat, mySeat, openCards, openPlay } = state!;
   const myHand = sortHand(state!.myHand);
 
-  // Show open cards separately if applicable
   let openSection = '';
   if (openPlay && openCards && openCards.length > 0) {
     const openOwner = state!.players.find(p =>
       state!.whistChoices[p.seatIndex] !== 'whist' && p.seatIndex !== state!.bidder
     );
-    openSection = `<div style="margin-bottom:6px;color:var(--accent);font-size:0.8rem">
-      ${openOwner?.name ?? 'Open'} hand (open play):
+    openSection = `<div style="margin-bottom:6px;color:var(--accent);font-size:0.82rem">
+      ${openOwner?.name ?? 'Open'} ${T.openHand}
     </div>` + openCards.map(c =>
       `<div class="card disabled ${suitClass(c)}">${cardLabel(c)}</div>`
     ).join('');
@@ -243,7 +278,6 @@ function renderHand(): void {
       data-suit="${c.suit}" data-rank="${c.rank}">${cardLabel(c)}</div>`;
   }).join('');
 
-  // Attach click handlers for playable cards
   $myHand.querySelectorAll('.card:not(.disabled)').forEach(el => {
     el.addEventListener('click', () => {
       const card: Card = {
@@ -261,40 +295,34 @@ function renderHand(): void {
 
 function toggleSelectCard(card: Card): void {
   const idx = selectedCards.findIndex(c => c.suit === card.suit && c.rank === card.rank);
-  if (idx >= 0) {
-    selectedCards.splice(idx, 1);
-  } else if (selectedCards.length < 2) {
-    selectedCards.push(card);
-  }
+  if (idx >= 0) selectedCards.splice(idx, 1);
+  else if (selectedCards.length < 2) selectedCards.push(card);
   renderHand();
-  renderActionPanel(); // update discard button
+  renderActionPanel();
 }
 
 function renderActionPanel(): void {
-  const { phase, activeSeat, mySeat, currentBid, bids, whistChoices } = state!;
+  const { phase, activeSeat, mySeat } = state!;
   $actionPanel.innerHTML = '';
-
   const isMyTurn = activeSeat === mySeat;
 
   if (phase === 'bidding' && isMyTurn) {
     renderBidPanel();
   } else if (phase === 'talon' && isMyTurn) {
-    $actionPanel.innerHTML = '<button id="take-talon-btn" style="font-size:1.05rem;padding:12px 28px">Pick up talon</button>';
-    document.getElementById('take-talon-btn')!.addEventListener('click', () => {
-      socket.emit('game:takeTalon');
-    });
+    $actionPanel.innerHTML = `<button id="take-talon-btn" style="font-size:1.05rem;padding:12px 28px">${T.pickUpTalon}</button>`;
+    document.getElementById('take-talon-btn')!.addEventListener('click', () => socket.emit('game:takeTalon'));
   } else if (phase === 'talon' && !isMyTurn) {
-    const bidderName = state!.players.find(p => p.seatIndex === state!.bidder)?.name ?? '...';
-    $actionPanel.innerHTML = `<p style="color:#aaa">Waiting for ${bidderName} to pick up the talon...</p>`;
+    const name = state!.players.find(p => p.seatIndex === state!.bidder)?.name ?? '...';
+    $actionPanel.innerHTML = `<p style="color:#aaa">${T.waitingFor} ${name} ${T.waitingTalon}</p>`;
   } else if (phase === 'talon_rebid' && isMyTurn) {
     renderRebidPanel();
   } else if (phase === 'talon_rebid' && !isMyTurn) {
-    const bidderName = state!.players.find(p => p.seatIndex === state!.bidder)?.name ?? '...';
-    $actionPanel.innerHTML = `<p style="color:#aaa">Waiting for ${bidderName} to confirm their bid...</p>`;
+    const name = state!.players.find(p => p.seatIndex === state!.bidder)?.name ?? '...';
+    $actionPanel.innerHTML = `<p style="color:#aaa">${T.waitingFor} ${name} ${T.waitingRebid}</p>`;
   } else if (phase === 'discarding' && isMyTurn) {
     $actionPanel.innerHTML = `
-      <p style="color:var(--accent)">Select 2 cards to discard</p>
-      <button id="discard-btn" ${selectedCards.length !== 2 ? 'disabled' : ''}>Discard selected</button>
+      <p style="color:var(--accent)">${T.selectDiscard}</p>
+      <button id="discard-btn" ${selectedCards.length !== 2 ? 'disabled' : ''}>${T.discardSelected}</button>
     `;
     document.getElementById('discard-btn')?.addEventListener('click', () => {
       if (selectedCards.length !== 2) return;
@@ -303,64 +331,52 @@ function renderActionPanel(): void {
     });
   } else if (phase === 'whisting' && isMyTurn) {
     $actionPanel.innerHTML = `
-      <p style="color:var(--accent)">Whist or pass?</p>
+      <p style="color:var(--accent)">${T.whistOrPass}</p>
       <div class="action-row">
-        <button id="whist-btn">Whist</button>
-        <button id="pass-w-btn">Pass</button>
+        <button id="whist-btn">${T.whist}</button>
+        <button id="pass-w-btn">${T.pass}</button>
       </div>
     `;
-    document.getElementById('whist-btn')!.addEventListener('click', () => {
-      socket.emit('game:whist', { choice: 'whist' });
-    });
-    document.getElementById('pass-w-btn')!.addEventListener('click', () => {
-      socket.emit('game:whist', { choice: 'pass' });
-    });
+    document.getElementById('whist-btn')!.addEventListener('click', () => socket.emit('game:whist', { choice: 'whist' }));
+    document.getElementById('pass-w-btn')!.addEventListener('click', () => socket.emit('game:whist', { choice: 'pass' }));
   } else if (phase === 'open_choice' && isMyTurn) {
     $actionPanel.innerHTML = `
-      <p style="color:var(--accent)">Play open or closed?</p>
+      <p style="color:var(--accent)">${T.openOrClosed}</p>
       <div class="action-row">
-        <button id="open-btn">Open</button>
-        <button id="closed-btn">Closed</button>
+        <button id="open-btn">${T.open}</button>
+        <button id="closed-btn">${T.closed}</button>
       </div>
     `;
-    document.getElementById('open-btn')!.addEventListener('click', () => {
-      socket.emit('game:openChoice', { choice: 'open' });
-    });
-    document.getElementById('closed-btn')!.addEventListener('click', () => {
-      socket.emit('game:openChoice', { choice: 'closed' });
-    });
+    document.getElementById('open-btn')!.addEventListener('click', () => socket.emit('game:openChoice', { choice: 'open' }));
+    document.getElementById('closed-btn')!.addEventListener('click', () => socket.emit('game:openChoice', { choice: 'closed' }));
   } else if (phase === 'playing' && isMyTurn) {
-    $actionPanel.innerHTML = '<p style="color:var(--accent)">Your turn — click a card to play</p>';
+    $actionPanel.innerHTML = `<p style="color:var(--accent)">${T.yourTurnPlay}</p>`;
   } else if (phase === 'raspasovka' && isMyTurn) {
-    $actionPanel.innerHTML = '<p style="color:var(--accent)">Raspasovka — try to take as few tricks as possible</p>';
+    $actionPanel.innerHTML = `<p style="color:var(--accent)">${T.raspasovkaMsg}</p>`;
   } else {
     const active = state!.players.find(p => p.seatIndex === activeSeat);
-    $actionPanel.innerHTML = `<p style="color:#aaa">Waiting for ${active?.name ?? '...'}...</p>`;
+    $actionPanel.innerHTML = `<p style="color:#aaa">${T.waitingFor} ${active?.name ?? '...'}...</p>`;
   }
 }
 
+// ---- Bid grid builder ----
 function buildBidGrid(minValue: number, emitEvent: string): string {
   const suits = ['spades', 'clubs', 'diamonds', 'hearts'] as const;
-  const suitSymbols: Record<string, string> = { spades: '♠', clubs: '♣', diamonds: '♦', hearts: '♥' };
-
+  const sym: Record<string, string> = { spades: '♠', clubs: '♣', diamonds: '♦', hearts: '♥' };
   let html = `<div id="bid-grid">`;
   for (let level = 6; level <= 10; level++) {
     for (const suit of suits) {
-      const contract = makeContractRaw({ type: 'suit', level: level as 6|7|8|9|10, suit });
-      const disabled = contract.bidValue < minValue;
+      const c = makeContractRaw({ type: 'suit', level: level as 6|7|8|9|10, suit });
       const cls = (suit === 'diamonds' || suit === 'hearts') ? 'bid-red' : '';
-      html += `<button class="bid-btn ${cls}" ${disabled ? 'disabled' : ''} data-bid='${JSON.stringify(contract)}' data-event="${emitEvent}">${level}${suitSymbols[suit]}</button>`;
+      html += `<button class="bid-btn ${cls}" ${c.bidValue < minValue ? 'disabled' : ''} data-bid='${JSON.stringify(c)}' data-ev="${emitEvent}">${level}${sym[suit]}</button>`;
     }
-    const sansContract = makeContractRaw({ type: 'sans', level: level as 6|7|8|9|10 });
-    const sansDisabled = sansContract.bidValue < minValue;
-    html += `<button class="bid-btn bid-blue" ${sansDisabled ? 'disabled' : ''} data-bid='${JSON.stringify(sansContract)}' data-event="${emitEvent}">${level} NS</button>`;
+    const sc = makeContractRaw({ type: 'sans', level: level as 6|7|8|9|10 });
+    html += `<button class="bid-btn bid-blue" ${sc.bidValue < minValue ? 'disabled' : ''} data-bid='${JSON.stringify(sc)}' data-ev="${emitEvent}">${level} NS</button>`;
   }
   html += `</div>`;
-
-  const misereContract = makeContractRaw({ type: 'misere' });
-  const misereDisabled = misereContract.bidValue < minValue;
+  const mc = makeContractRaw({ type: 'misere' });
   html += `<div style="margin-top:8px">
-    <button class="bid-btn bid-misere" ${misereDisabled ? 'disabled' : ''} data-bid='${JSON.stringify(misereContract)}' data-event="${emitEvent}">Misère</button>
+    <button class="bid-btn bid-misere" ${mc.bidValue < minValue ? 'disabled' : ''} data-bid='${JSON.stringify(mc)}' data-ev="${emitEvent}">Misère</button>
   </div>`;
   return html;
 }
@@ -368,59 +384,45 @@ function buildBidGrid(minValue: number, emitEvent: string): string {
 function attachBidListeners(): void {
   $actionPanel.querySelectorAll('.bid-btn:not([disabled])').forEach(el => {
     el.addEventListener('click', () => {
-      const b = JSON.parse(el.getAttribute('data-bid')!);
-      const ev = el.getAttribute('data-event')!;
-      socket.emit(ev, { contract: b });
+      socket.emit(el.getAttribute('data-ev')!, { contract: JSON.parse(el.getAttribute('data-bid')!) });
     });
   });
 }
 
 function renderBidPanel(): void {
-  const { currentBid } = state!;
-  const minValue = currentBid ? currentBid.bidValue + 1 : 0;
-  let html = `<h3>Your bid</h3>` + buildBidGrid(minValue, 'game:bid');
-  html += `<div style="margin-top:10px"><button class="danger" id="pass-bid-btn">Pass</button></div>`;
-  $actionPanel.innerHTML = html;
+  const minValue = (state!.currentBid?.bidValue ?? -1) + 1;
+  $actionPanel.innerHTML = `<h3>${T.yourBid}</h3>` + buildBidGrid(minValue, 'game:bid') +
+    `<div style="margin-top:10px"><button class="danger" id="pass-bid-btn">${T.pass}</button></div>`;
   attachBidListeners();
-  document.getElementById('pass-bid-btn')!.addEventListener('click', () => {
-    socket.emit('game:bid', { contract: { type: 'pass' } });
-  });
+  document.getElementById('pass-bid-btn')!.addEventListener('click', () =>
+    socket.emit('game:bid', { contract: { type: 'pass' } }));
 }
 
 function renderRebidPanel(): void {
-  const { currentBid } = state!;
-  const minValue = currentBid ? currentBid.bidValue : 0; // can rebid same or higher
-  const currentLabel = currentBid ? contractLabel(currentBid) : '—';
-  let html = `<h3>Update your bid</h3>
+  const minValue = state!.currentBid?.bidValue ?? 0;
+  const currentLabel = state!.currentBid ? contractLabel(state!.currentBid) : '—';
+  $actionPanel.innerHTML = `<h3>${T.updateBid}</h3>
     <div style="margin-bottom:10px">
-      <button id="keep-bid-btn" class="secondary">Keep: <strong>${currentLabel}</strong></button>
+      <button id="keep-bid-btn" class="secondary">${T.keepBid}: <strong>${currentLabel}</strong></button>
     </div>` + buildBidGrid(minValue, 'game:confirmRebid');
-  $actionPanel.innerHTML = html;
   attachBidListeners();
-  document.getElementById('keep-bid-btn')!.addEventListener('click', () => {
-    socket.emit('game:confirmRebid', { contract: { type: 'pass' } });
-  });
+  document.getElementById('keep-bid-btn')!.addEventListener('click', () =>
+    socket.emit('game:confirmRebid', { contract: { type: 'pass' } }));
 }
 
 function renderBullet(): void {
   const { players } = state!;
   $bulletHeader.innerHTML = '<th>#</th>' + players.map(p => `<th>${p.name}</th>`).join('');
-
   const maxEntries = Math.max(...players.map(p => p.score.bulletEntries.length), 1);
   let rows = '';
   for (let i = 0; i < maxEntries; i++) {
     rows += `<tr><td>${i + 1}</td>` +
-      players.map(p => `<td>${p.score.bulletEntries[i] ?? '—'}</td>`).join('') +
-      '</tr>';
+      players.map(p => `<td>${p.score.bulletEntries[i] ?? '—'}</td>`).join('') + '</tr>';
   }
-  rows += `<tr style="font-weight:bold">
-    <td>Viso</td>
-    ${players.map(p => `<td>${p.score.bulletEntries.reduce((a, b) => a + b, 0)}</td>`).join('')}
-  </tr>`;
-  rows += `<tr><td>Bauda</td>${players.map(p => `<td style="color:var(--danger)">${p.score.pool ? '-' + p.score.pool : '—'}</td>`).join('')}</tr>`;
-  rows += `<tr><td>WK</td>${players.map(p => `<td>${p.score.whistFromLeft || '—'}</td>`).join('')}</tr>`;
-  rows += `<tr><td>WD</td>${players.map(p => `<td>${p.score.whistFromRight || '—'}</td>`).join('')}</tr>`;
-
+  rows += `<tr style="font-weight:bold"><td>${T.total}</td>${players.map(p => `<td>${p.score.bulletEntries.reduce((a, b) => a + b, 0)}</td>`).join('')}</tr>`;
+  rows += `<tr><td>${T.bauda}</td>${players.map(p => `<td style="color:var(--danger)">${p.score.pool ? '-' + p.score.pool : '—'}</td>`).join('')}</tr>`;
+  rows += `<tr><td>${T.wk}</td>${players.map(p => `<td>${p.score.whistFromLeft || '—'}</td>`).join('')}</tr>`;
+  rows += `<tr><td>${T.wd}</td>${players.map(p => `<td>${p.score.whistFromRight || '—'}</td>`).join('')}</tr>`;
   $bulletBody.innerHTML = rows;
 }
 
@@ -429,16 +431,16 @@ function renderHandResult(): void {
   if (!handResult) return;
 
   if (state!.phase === 'game_over') {
-    $resultTitle.textContent = '🏆 Game Over!';
-    $nextHandBtn.textContent = 'Game Over';
+    $resultTitle.textContent = `🏆 ${T.gameOver}`;
+    $nextHandBtn.textContent = T.gameOver;
     $nextHandBtn.disabled = true;
   } else {
     $resultTitle.textContent = handResult.phase === 'raspasovka' ? 'Raspasovka' : 'Hand Result';
-    $nextHandBtn.textContent = 'Next Hand';
+    $nextHandBtn.textContent = T.nextHand;
     $nextHandBtn.disabled = false;
   }
 
-  $resultHeader.innerHTML = '<th>Player</th><th>Home</th><th>Taškai+</th><th>Bauda</th><th>Whist+</th>';
+  $resultHeader.innerHTML = `<th>Player</th><th>${T.home}</th><th>${T.taskai}+</th><th>${T.bauda}</th><th>${T.whistPlus}</th>`;
   $resultBody.innerHTML = players.map(p => {
     const delta = handResult.scoreDeltas.find(d => d.seat === p.seatIndex);
     const whistTotal = (delta?.whistLeftDelta ?? 0) + (delta?.whistRightDelta ?? 0);
@@ -453,8 +455,7 @@ function renderHandResult(): void {
 
   if (handResult.contract) {
     const made = handResult.made;
-    const contractStr = contractLabel(handResult.contract);
-    $resultTitle.textContent += ` — ${contractStr} ${made ? '✓ Made' : '✗ Failed'}`;
+    $resultTitle.textContent += ` — ${contractLabel(handResult.contract)} ${made ? '✓' : '✗'}`;
   }
 
   $handResult.classList.add('show');

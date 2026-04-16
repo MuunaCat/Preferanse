@@ -1,5 +1,9 @@
+// This file handles translations — all the text shown in the UI in 3 languages.
+// To add a new language, copy one of the objects below and translate the values.
+
 export type Lang = 'en' | 'lt' | 'pl';
 
+// The shape of a translations object — every key must have a value in every language
 export interface LangStrings {
   joinGame: string; startGame: string; yourName: string;
   taškaiTarget: string; set: string; rules: string;
@@ -20,6 +24,7 @@ export interface LangStrings {
   openHand: string; gameOver: string;
 }
 
+// English translations
 const en: LangStrings = {
   joinGame: 'Join Game', startGame: 'Start Game', yourName: 'Your name',
   taškaiTarget: 'Taškai target', set: 'Set', rules: 'Rules',
@@ -77,6 +82,7 @@ const en: LangStrings = {
     </ul>`,
 };
 
+// Lithuanian translations
 const lt: LangStrings = {
   joinGame: 'Prisijungti', startGame: 'Pradėti žaidimą', yourName: 'Jūsų vardas',
   taškaiTarget: 'Taškų tikslas', set: 'Nustatyti', rules: 'Taisyklės',
@@ -134,6 +140,7 @@ const lt: LangStrings = {
     </ul>`,
 };
 
+// Polish translations
 const pl: LangStrings = {
   joinGame: 'Dołącz do gry', startGame: 'Rozpocznij grę', yourName: 'Twoje imię',
   taškaiTarget: 'Cel punktów', set: 'Ustaw', rules: 'Zasady',
@@ -191,15 +198,21 @@ const pl: LangStrings = {
     </ul>`,
 };
 
+// All 3 languages bundled together
 export const TRANSLATIONS: Record<Lang, LangStrings> = { en, lt, pl };
 
+// The currently active language (saved in localStorage so it persists between sessions)
 let currentLang: Lang = (localStorage.getItem('pref_lang') as Lang) || 'en';
+
+// T is the shorthand used everywhere in the app to get translated text, e.g. T.joinGame
 export let T: LangStrings = TRANSLATIONS[currentLang];
 
+// Switches the active language and saves the choice
 export function setLang(lang: Lang): void {
   currentLang = lang;
   localStorage.setItem('pref_lang', lang);
   T = TRANSLATIONS[lang];
 }
 
+// Returns the currently active language code
 export function getLang(): Lang { return currentLang; }
